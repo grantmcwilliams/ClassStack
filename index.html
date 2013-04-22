@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Classstack : Training class management stack for Xen Cloud Platform" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Classstack</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/grantmcwilliams/classstack">View on GitHub</a>
+
+          <h1 id="project_title">Classstack</h1>
+          <h2 id="project_tagline">Training class management stack for Xen Cloud Platform</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/grantmcwilliams/classstack/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/grantmcwilliams/classstack/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <p>Classstack is an XCP/Xenserver management stack for classroom environments. It's purpose is to manage groups of virtual machines by class. Input data comes from Instructor Briefcase formatted rosters. Instructor Briefcase doesn't export so a copy and paste of the web screen is then saved into a text file in the IBCfiles directory. Use mkroster.sh to convert the Instructor Briefcase file into a classtack roster file in the Rosters directory. </p>
+
+<h1>My Setup</h1>
+
+<ol>
+<li>8 core iSCSI SAN host with 1 Hard disk and 3 Solid State disks with 3 network cards</li>
+<li>6 core host with no local storage repository with 2 network cards</li>
+<li>6 core host with no local storage repository with 2 network cards</li>
+<li>6 core host with no local storage repository with 2 network cards</li>
+<li>A VM named classserver that handles DHCP/DNS, web services (Moodle) and a CentOS software mirror. The DHCP/DNS services are provided by dnsmasq. This is required with classstack currently as classstack uses /etc/hosts and /etc/ethers to configure DHCP/DNS for all student VMs.</li>
+</ol><p>Machine #1 acts as the iSCSI SAN for all Storage Repositories and the gateway to the outside world. One network card is plugged into the WAN and the other into an internal network switch for the SAN network. The third network card is plugged into a second network switch for the internal class network. The firewall/NAT is provided by iptables and forwards traffic to the first network card and the internal class network.</p>
+
+<p>Machines #2,3, and 4 are all in the same Pool. These hosts have their default storage repository set to the hard disks in machine #1. The SSD disks are configured as Storage Repositories named iSCSI-SSD_0, iSCSI-SDD_1 and iSCSI-SSD_2.</p>
+
+<h1>Requirements</h1>
+
+<ol>
+<li>XCP/Xenserver host</li>
+<li>A default Storage Repository on any type of disk</li>
+<li>Storage Repository named iSCSI-SSD_${x} where ${x} is a number 0 or greater (starting from 0). This is for extra disks)</li>
+<li>Xenapi Admin Tools</li>
+<li>Instructor Briefcase html screengrab (copy/paste)</li>
+<li>A golden VM image named baseimage</li>
+</ol><h1>Install</h1>
+
+<p>Git clone both classstack and xenapi-admin-tools. This can be done on your XCP host directly by installing git on XCP/Xenserver - <a href="http://grantmcwilliams.com/item/652-install-git-on-xcp-host">http://grantmcwilliams.com/item/652-install-git-on-xcp-host</a>.</p>
+
+<pre><code>git clone https://github.com/Xenapi-Admin-Project/xenapi-admin-tools.git
+git clone https://github.com/grantmcwilliams/classstack.git
+</code></pre>
+
+<p>Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. If you add the files to /root/bin they'll already be in your $PATH. I also like symbollically linking vm.sh to vm.</p>
+
+<p>The directory structure should look like this </p>
+
+<pre><code>cd /root/bin
+[root@cloud0 bin]# ls
+IBCfiles  mkroster.sh  Rosters  test.sh  vm.sh  wipevdis.sh  wipevm.sh  xaptools.lib
+ln -s vm.sh vm
+</code></pre>
+
+<p>This allows me to just run vm instead of having to type vm.sh.</p>
+
+<h2>Cofiguring multiple poolhosts</h2>
+
+<p>To configure multiple poolhosts create the following directory - $HOME/.XECONFIGS. vm.sh will also create the directory the first time it's run and set the permissions appropriately. Inside that directory create ONE file per host with the following information in it. </p>
+
+<pre><code>LABEL="cloudhost1"
+POOLMASTER="cloud1.acs.edcc.edu"
+PORT="443"
+USERNAME="root"
+PASSWORD="password"
+</code></pre>
+
+<p>The LABEL is freeform so you can name the config anything you want. When you list configs with vm.sh -s list both the LABEL and the POOLMASTER will be displayed. Unless you're using a custom USER or PORT leave these as they are. Change PASSWORD to match your POOLMASTER passsword. This file will be readable only by the owner of the file. This is enforced by classstack.</p>
+
+<h1>VM Help</h1>
+
+<p>Output of vm.sh help </p>
+
+<pre><code>  Usage: vm [options] &lt;subcommand&gt;
+
+    Version:    0.2
+
+    Options:
+    -d      turn on shell debugging
+    -h      this help text
+    -w      number of whitespaces between columns
+    -s &lt;host&gt;   remote poolmaster host
+    -s list     list stored poolmaster configs
+    -p &lt;password&gt;   remote poolmaster password
+
+    Subcommands:
+    listclass   list members of a class
+    infoclass   show information about students
+    classrun    run command on all VMs in a class
+    createvm    create a new student VM
+    createclass create VMs for all students in a class
+    createroster    convert Instructor Briefcase screen to CSV
+    startvm     starts the VM for a student
+    startclass  starts the VMs for an entire class
+    stopvm      stops the VM for a student
+    stopclass   stops the VMs for a class
+    deletevm    deletes the VM for a student
+    deleteclass deletes all VMs for an entire class
+    recreatevm  shutdown, delete, create then start a vm
+</code></pre>
+
+<h1>Create a Class</h1>
+
+<p>Create a class by opening up the class roster in Instructor Briefcase. Copy and paste the ENTIRE webpage (top left to bottom right) and paste it into a text file on the machine running classtack.</p>
+
+<p>The format of the resulting file should look like this. </p>
+
+<pre><code>[root@cloud0 IBCfiles]# cat CS125.txt 
+Class Roster
+QUARTER ITEM    COURSE  SECTION TITLE   INSTRUCTOR
+Winter 2013 3057    CS 125  SA  LINUX/UNIX I    GRANT MCWILLIAMS
+
+BUILDING
+ROOM    CREDIT  START
+TIME    END
+TIME    DAYS    START
+TENTH
+DAY COUNT
+METH    SECT
+STAT
+ALD 0105     5.0    06:00pm 07:40pm TTh 01/02/13    01/15/13         
+
+    SID STUDENT`S NAME  GRADE   DAY PHONE   EVENING PHONE
+1   111-11-1111 BLOW JOE        425 111-1111    425 111-1111
+
+Total students  0001    Total students excluding withdrawals    0001
+</code></pre>
+
+<p>In my example below I've named the file CS126.txt. Create a classtack roster by running vm.sh createroster .</p>
+
+<pre><code>vm.sh createroster IBCfiles/CS126.txt
+</code></pre>
+
+<p>Now that you have a classstack roster file in CSV format you can run some commands on it like vm.sh listclass. </p>
+
+<p>Create your class VMs by using the vm.sh createclass command. </p>
+
+<pre><code>vm.sh createclass
+</code></pre>
+
+<p>If everything is OK it will clone the VM image named baseimage and create a second virtual network interface in each VM, then create 4 virtual disk images for each VM assigning each disk image in an iSCSI-SSD storage repository alternately.</p>
+
+<p>Start a class using the vm.sh startclass command</p>
+
+<pre><code>vm.sh startclass
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Classstack maintained by <a href="https://github.com/grantmcwilliams">grantmcwilliams</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
