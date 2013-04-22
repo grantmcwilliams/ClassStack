@@ -38,13 +38,17 @@ git clone https://github.com/grantmcwilliams/classstack.git
 Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. 
 
 The directory structure should look like this 
+'''
 [root@cloud0 bin]# ls
 IBCfiles  mkroster.sh  Rosters  test.sh  vm.sh  wipevdis.sh  wipevm.sh  xaptools.lib
+'''
 
 I like putting these files into /root/bin so they're in my path. I also like symbolically linking vm.sh to vm. 
 
+'''
 cd /root/bin
 ln -s vm.sh vm
+'''
 
 This allows me to just run vm instead of having to type vm.sh.
 
@@ -53,11 +57,13 @@ Cofiguring multiple poolhosts
 
 To configure multiple poolhosts create the following directory - $HOME/.XECONFIGS. vm.sh will also create the directory the first time it's run and set the permissions appropriately. Inside that directory create ONE file per host with the following information in it. 
 
+'''
 LABEL="cloudhost1"
 POOLMASTER="cloud1.acs.edcc.edu"
 PORT="443"
 USERNAME="root"
 PASSWORD="password"
+'''
 
 The label is freeform so you can name the config anything you want. When you list configs with vm.sh -s list both the LABEL and the POOLMASTER will be displayed. Unless you're using a custom USER or PORT leave these as they are. Change PASSWORD to match your POOLMASTER passsword. This file will be readable only by the owner of the file. This is enforced by classstack.
 
