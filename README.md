@@ -31,22 +31,18 @@ I've written this to
 Install
 =======
 Git clone both classstack and xenapi-admin-tools. This can be done on your XCP host directly by installing git on XCP/Xenserver - http://grantmcwilliams.com/item/652-install-git-on-xcp-host.
-
+'''
 git clone https://github.com/Xenapi-Admin-Project/xenapi-admin-tools.git
 git clone https://github.com/grantmcwilliams/classstack.git
+'''
 
-Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. 
+Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. If you add the files to /root/bin they'll already be in your $PATH. I also like symbollically linking vm.sh to vm.
 
 The directory structure should look like this 
 '''
+cd /root/bin
 [root@cloud0 bin]# ls
 IBCfiles  mkroster.sh  Rosters  test.sh  vm.sh  wipevdis.sh  wipevm.sh  xaptools.lib
-'''
-
-I like putting these files into /root/bin so they're in my path. I also like symbolically linking vm.sh to vm. 
-
-'''
-cd /root/bin
 ln -s vm.sh vm
 '''
 
