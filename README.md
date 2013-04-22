@@ -31,20 +31,20 @@ I've written this to
 Install
 =======
 Git clone both classstack and xenapi-admin-tools. This can be done on your XCP host directly by installing git on XCP/Xenserver - http://grantmcwilliams.com/item/652-install-git-on-xcp-host.
-'''
+```
 git clone https://github.com/Xenapi-Admin-Project/xenapi-admin-tools.git
 git clone https://github.com/grantmcwilliams/classstack.git
-'''
+```
 
 Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. If you add the files to /root/bin they'll already be in your $PATH. I also like symbollically linking vm.sh to vm.
 
 The directory structure should look like this 
-'''
+```
 cd /root/bin
 [root@cloud0 bin]# ls
 IBCfiles  mkroster.sh  Rosters  test.sh  vm.sh  wipevdis.sh  wipevm.sh  xaptools.lib
 ln -s vm.sh vm
-'''
+```
 
 This allows me to just run vm instead of having to type vm.sh.
 
@@ -53,13 +53,13 @@ Cofiguring multiple poolhosts
 
 To configure multiple poolhosts create the following directory - $HOME/.XECONFIGS. vm.sh will also create the directory the first time it's run and set the permissions appropriately. Inside that directory create ONE file per host with the following information in it. 
 
-'''
+```
 LABEL="cloudhost1"
 POOLMASTER="cloud1.acs.edcc.edu"
 PORT="443"
 USERNAME="root"
 PASSWORD="password"
-'''
+```
 
 The label is freeform so you can name the config anything you want. When you list configs with vm.sh -s list both the LABEL and the POOLMASTER will be displayed. Unless you're using a custom USER or PORT leave these as they are. Change PASSWORD to match your POOLMASTER passsword. This file will be readable only by the owner of the file. This is enforced by classstack.
 
@@ -103,7 +103,7 @@ Create a class by opening up the class roster in Instructor Briefcase. Copy and 
 
 The format of the resulting file should look like this. 
 
-'''
+```
 [root@cloud0 IBCfiles]# cat CS125.txt 
 Class Roster
 QUARTER	ITEM	COURSE	SECTION	TITLE	INSTRUCTOR
@@ -123,13 +123,12 @@ ALD 0105	 5.0	06:00pm	07:40pm	TTh	01/02/13	01/15/13
 1	111-11-1111	BLOW JOE	 	425 111-1111	425 111-1111
 
 Total students	0001	Total students excluding withdrawals	0001
-'''
+```
 
 In my example below I've named the file CS126.txt. Create a classtack roster by running vm.sh createroster <IBC file>.
 
-'''
-
-	vm.sh createroster IBCfiles/CS126.txt
-'''
+```
+vm.sh createroster IBCfiles/CS126.txt
+```
 
 Now that you have a classstack roster file in CSV format you can run some commands on it like vm.sh listclass. 
