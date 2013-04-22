@@ -101,6 +101,7 @@ Create a class by opening up the class roster in Instructor Briefcase. Copy and 
 
 The format of the resulting file should look like this. 
 
+```
 [root@cloud0 IBCfiles]# cat CS125.txt 
 Class Roster
 QUARTER	ITEM	COURSE	SECTION	TITLE	INSTRUCTOR
@@ -120,7 +121,7 @@ ALD 0105	 5.0	06:00pm	07:40pm	TTh	01/02/13	01/15/13
 1	111-11-1111	BLOW JOE	 	425 111-1111	425 111-1111
 
 Total students	0001	Total students excluding withdrawals	0001
-
+```
 
 In my example below I've named the file CS126.txt. Create a classtack roster by running vm.sh createroster <IBC file>.
 
