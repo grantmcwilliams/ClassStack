@@ -67,7 +67,7 @@ VM Help
 =======
 
 Output of vm.sh help 
-
+```
   Usage: vm [options] <subcommand>
 
 	Version: 	0.2
@@ -94,7 +94,7 @@ Output of vm.sh help
 	deletevm	deletes the VM for a student
 	deleteclass	deletes all VMs for an entire class
 	recreatevm 	shutdown, delete, create then start a vm
-	
+```	
 
 Create a Class
 ==============
