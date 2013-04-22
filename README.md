@@ -35,6 +35,8 @@ git clone https://github.com/Xenapi-Admin-Project/xenapi-admin-tools.git
 git clone https://github.com/grantmcwilliams/classstack.git
 ```
 
+Alternately you can download archived copies of classstack from  http://grantmcwilliams.github.io/classstack.
+
 Once you've cloned xaptools and classstack you'll need to copy xaptools.lib into the classstack directory and add that directory to your system $PATH. If you add the files to /root/bin they'll already be in your $PATH. I also like symbollically linking vm.sh to vm.
 
 The directory structure should look like this 
