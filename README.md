@@ -61,7 +61,7 @@ USERNAME="root"
 PASSWORD="password"
 ```
 
-The label is freeform so you can name the config anything you want. When you list configs with vm.sh -s list both the LABEL and the POOLMASTER will be displayed. Unless you're using a custom USER or PORT leave these as they are. Change PASSWORD to match your POOLMASTER passsword. This file will be readable only by the owner of the file. This is enforced by classstack.
+The LABEL is freeform so you can name the config anything you want. When you list configs with vm.sh -s list both the LABEL and the POOLMASTER will be displayed. Unless you're using a custom USER or PORT leave these as they are. Change PASSWORD to match your POOLMASTER passsword. This file will be readable only by the owner of the file. This is enforced by classstack.
 
 VM Help
 =======
@@ -132,3 +132,18 @@ vm.sh createroster IBCfiles/CS126.txt
 ```
 
 Now that you have a classstack roster file in CSV format you can run some commands on it like vm.sh listclass. 
+
+Create your class VMs by using the vm.sh createclass command. 
+```
+vm.sh createclass
+```
+
+If everything is OK it will clone the VM image named baseimage and create a second virtual network interface in each VM, then create 4 virtual disk images for each VM assigning each disk image in an iSCSI-SSD storage repository alternately.
+
+Start a class using the vm.sh startclass command
+```
+vm.sh startclass
+```
+
+
+
