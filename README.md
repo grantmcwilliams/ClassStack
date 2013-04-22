@@ -24,7 +24,6 @@ Requirements
 4. Instructor Briefcase html screengrab (copy/paste)
 5. A golden VM image named baseimage
 
-I've written this to 
 
 
 
