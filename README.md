@@ -127,6 +127,8 @@ Total students	0001	Total students excluding withdrawals	0001
 
 In my example below I've named the file CS126.txt. Create a classtack roster by running vm.sh createroster <IBC file>.
 
+'''
 vm.sh createroster IBCfiles/CS126.txt
+'''
 
 Now that you have a classstack roster file in CSV format you can run some commands on it like vm.sh listclass. 
