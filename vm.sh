@@ -10,17 +10,7 @@ setup()
 	source "$SCRIPTDIR/xaptools.lib"  #after we move to rpm we'll find a better place for this
 	
 	#for now
-	DOMAIN="acs.edcc.edu"
-	#POOLMASTER="cloud1.${DOMAIN}"
-	#USERNAME="root"
-	#PASSWORD="cscisadmin"
-	#if [[ -z "$PASSWORD" ]] ;then
-	#	echo "Please enter the poolmaster password"
-	#	read -s PASSWORD
-	#	clear ; echo ""
-	#fi
-	#export XE_EXTRA_ARGS="server=${POOLMASTER},username=${USERNAME},password=${PASSWORD}"
-	
+	DOMAIN="acs.edcc.edu"	
 	TMPDIR=$(mktemp -d)
 	ROSTER="$SCRIPTDIR/Rosters/ROSTDOWN.csv"
 	BASEIMAGE="studentbase"
@@ -47,7 +37,11 @@ setupsan()
 		SSDSANUUID[$x]=$(xe sr-list name-label=iSCSI-SSD_${x} --minimal)
 		if [[ -z "${SSDSANUUID[$x]}" ]] ;then
 			echo "Error \$SSDSANUUID is empty"
-			exit 1
+			if yesno "Are you sure you want to continue" ;then
+				return 1
+			else
+				exit 1
+			fi
 		fi
 	done
 }
@@ -74,7 +68,7 @@ syntax()
         cecho "	classrun" cyan ; echo " 	run command on all VMs in a class"
         cecho "	createvm" cyan; echo "	create a new student VM"
         cecho "	createclass" cyan; echo "	create VMs for all students in a class"
-        cecho "	createroster" cyan; echo "	convert Instructor Briefcase screen to CSV"
+        cecho "	createroster <IBC file" cyan; echo "	convert Instructor Briefcase screen to CSV"
         cecho "	startvm" cyan; echo "	 	starts the VM for a student"
         cecho "	startclass" cyan; echo " 	starts the VMs for an entire class"
         cecho "	stopvm" cyan; echo " 		stops the VM for a student"
@@ -442,8 +436,9 @@ createvm()
 			SSDUUID=$(xe vdi-create sr-uuid="${SSDSANUUID[$j]}" name-label="${STUSIDS[$INDEX]}_${i}" type=user virtual-size="${DISKSIZE}")
 			cecho "*" cyan ;echo "     Creating disk $DNAME"
 			BLANK=$(xe vdi-param-set uuid="$SSDUUID" name-description="$DNAME on ${STUSIDS[$INDEX]}")
-			VBDUUID=$(xe vbd-create vdi-uuid="$SSDUUID" bootable=false type=disk device="$i" vm-uuid="${STUUUID[$INDEX]}")
 		fi
+		SSDUUID=$(xe vdi-list name-label="${STUSIDS[$INDEX]}_${i}" params=uuid --minimal)
+		VBDUUID=$(xe vbd-create vdi-uuid="$SSDUUID" bootable=false type=disk device="$i" vm-uuid="${STUUUID[$INDEX]}")
 		if [[ $(xe vm-param-get uuid="${STUUUID[$INDEX]}" param-name=power-state) == 'running' ]]; then
 			xe vbd-plug uuid="${VBDUUID}"
 		fi
@@ -557,12 +552,13 @@ stopstudent()
 	if ! choosestudent ;then
 		exit
 	fi
-	if [[ $(xe vm-param-get name-label="${STUSIDS[$STUDENTINDEX]}" param-name=power-state) == 'running' ]]; then
-	clear ; echo ""
+	VMUUID=$(xe vm-list name-label="${STUSIDS[$STUDENTINDEX]}" params=uuid --minimal)
+	if [[ $(xe vm-param-get uuid="${VMUUID}" param-name=power-state) == 'running' ]]; then
+		clear ; echo ""
 		title1 "Shutting down Student VM" ;echo ""
 		cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
-		xe vm-shutdown name-label="${STUSIDS[$STUDENTINDEX]}"
-		xe event-wait class=vm power-state=halted uuid="${STUSIDS[$STUDENTINDEX]}"
+		xe vm-shutdown uuid="${VMUUID}"
+		xe event-wait class=vm power-state=halted uuid="${VMUUID}"
 	fi
 }
 
@@ -574,13 +570,15 @@ stopclass()
 		exit
 	fi
 	clear ; echo ""
+	
 	title1 "Shutting down ${CLASSES[$CLASSINDEX]} VMs" ; echo ""
 	for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
+		VMUUID=$(xe vm-list name-label="${STUSIDS[$i]}" params=uuid --minimal)
 		if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
-			if [[ $(xe vm-param-get name-label="${STUSIDS[$i]}" param-name=power-state) == 'running' ]]; then
+			if [[ $(xe vm-param-get uuid=$VMUUID param-name=power-state) == 'running' ]]; then
 				cecho "*" cyan ;echo "     ${STUSIDS[$i]}"
-				xe vm-shutdown name-label="${STUSIDS[$i]}"
-				xe event-wait class=vm power-state=halted uuid="${STUSIDS[$i]}"
+				xe vm-shutdown uuid="${VMUUID}"
+				xe event-wait class=vm power-state=halted uuid="${VMUUID}"
 			fi
 		fi
 	done
