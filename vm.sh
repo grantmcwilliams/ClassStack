@@ -12,7 +12,8 @@ setup()
 	#for now
 	DOMAIN="acs.edcc.edu"	
 	TMPDIR=$(mktemp -d)
-	ROSTER="$SCRIPTDIR/Rosters/ROSTDOWN.csv"
+	SALTDIR="/etc/salt"
+	ROSTER="${SCRIPTDIR}/Rosters/ROSTDOWN.csv"
 	BASEIMAGE="studentbase"
 	setcolors	
 	DEFSPACE="5"
@@ -25,14 +26,16 @@ setup()
 	MEMMAX=805306368
 	DISKSIZE="536870912" #In Bytes 
 	DISKTOTAL="4"
-	getclasses
+	if [[ -f ${ROSTER} ]] ;then
+		getclasses
+	fi
 	VMSTARTIP="102"
 	VMTOTAL="68"
 }
 
 setupsan()
 {
-	SSDSANNUM="2"
+	SSDSANNUM="1"
 	for x in $(seq 0 $(( ${SSDSANNUM} - 1 )) ) ;do
 		SSDSANUUID[$x]=$(xe sr-list name-label=iSCSI-SSD_${x} --minimal)
 		if [[ -z "${SSDSANUUID[$x]}" ]] ;then
@@ -63,8 +66,9 @@ syntax()
         cecho "	-p <password>" cyan ; echo "	remote poolmaster password"
         echo ""
         cecho "	Subcommands:" blue ;echo""
-        cecho "	listclass" cyan; echo " 	list members of a class"
-        cecho "	infoclass" cyan; echo " 	show information about students"
+        cecho "	listclass" cyan; echo " 	list students, SIDs, IPs and ports of a class"
+        cecho " listports" cyan; echo "     list students and their ports"
+        cecho "	listinfo" cyan; echo " 	show information about students"
         cecho "	classrun" cyan ; echo " 	run command on all VMs in a class"
         cecho "	createvm" cyan; echo "	create a new student VM"
         cecho "	createclass" cyan; echo "	create VMs for all students in a class"
@@ -89,12 +93,12 @@ getethers()
 			rm -f "$FILE"
 		fi
 	done
-	if ! scp -q classserver:/etc/ethers "$TMPDIR/ethers.tmp" ;then
+	if ! scp -P 1022 -q classserver:/etc/ethers "$TMPDIR/ethers.tmp" ;then
 		log_failure_msg "Could not retrieve ethers file" ;return 1
 	else
 		sed '/^$/d' "$TMPDIR/ethers.tmp" | sort +1 -2 > "$TMPDIR/ethers"
 	fi
-	if ! scp -q classserver:/etc/hosts "$TMPDIR/hosts.tmp" ;then
+	if ! scp -P 1022 -q classserver:/etc/hosts "$TMPDIR/hosts.tmp" ;then
 		log_failure_msg "Could not retrieve hosts file" ;return 1
 	else
 		sed '/^$/d' "$TMPDIR/hosts.tmp" > "$TMPDIR/hosts"
@@ -106,10 +110,10 @@ putethers()
 	#Copies ethers/hosts to classserver
 	cecho "*" cyan ;echo "     Uploading ethers/hosts"
 	sed '/^$/d' "$TMPDIR/ethers" | sort +1 -2 > "$TMPDIR/ethers.tmp"
-	scp -q "$TMPDIR/ethers.tmp" "classserver:/etc/ethers"
+	scp -P 1022 -q "$TMPDIR/ethers.tmp" "classserver:/etc/ethers"
 	sed -i '/^$/d' "$TMPDIR/hosts"
-	scp -q "$TMPDIR/hosts" "classserver:/etc/hosts"
-	OUT=$(ssh classserver "service dnsmasq restart")
+	scp -P 1022 -q "$TMPDIR/hosts" "classserver:/etc/hosts"
+	OUT=$(ssh -p 1022 classserver "service dnsmasq restart")
 	for LINE in $OUT ;do
 		cecho "*" cyan ;echo "     $LINE"
 	done
@@ -225,9 +229,10 @@ showclass()
 {
 
 	local MODE="standard"
-	while getopts :v opt ;do
+	while getopts :vp opt ;do
         case $opt in
                 v) local MODE="verbose" ;;
+                p) local MODE="ports" ;;
         esac
 	done
 	#shift $(($OPTIND - 1))
@@ -250,8 +255,25 @@ showclass()
 					cecho "${STUSIDS[$i]}" cyan 					;printspaces "${COLLONGEST[1]}" "${#STUSIDS[$i]}" 
 					cecho "${STUIP[$i]}" cyan 						;printspaces "${COLLONGEST[2]}" "${#STUIP[$i]}"  
 					cecho "${STUPORT[$i]}" blue     			
-				fi
 				echo ""
+				fi
+			done
+		;;
+		"ports")
+			TITLES=( 'Name' 'SID' 'IP' 'Port' )
+			COLLONGEST[0]=$(getcolwidth "${TITLES[0]}" "${STUNAMES[@]}")
+			COLLONGEST[1]=$(getcolwidth "${TITLES[1]}" "${STUSIDS[@]}")
+			COLLONGEST[2]=$(getcolwidth "${TITLES[2]}" "${STUIP[@]}")
+			COLLONGEST[3]=$(getcolwidth "${TITLES[3]}" "${STUPORT[@]}")
+			TITLEBARWIDTH=$(( ${COLLONGEST[0]} + $MINSPACE + ${COLLONGEST[1]} + $MINSPACE + ${COLLONGEST[2]} +  $MINSPACE + ${COLLONGEST[3]} ))
+			printtitlebar "Class List" "$TITLEBARWIDTH" black
+			printheadings
+			for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
+				if [[ "${STUCLASSES[$i]}" = "${CLASSES[$INDEX]}" ]] ;then
+					cecho "${STUNAMES[$i]}" cyan 					;printspaces "${COLLONGEST[0]}" "${#STUNAMES[$i]}" 
+					cecho "${STUPORT[$i]}" blue     			
+				echo ""
+				fi
 			done
 		;;
 		"verbose")
@@ -273,8 +295,8 @@ showclass()
 					cecho "${STUPORT[$i]}" cyan 					;printspaces "${COLLONGEST[3]}" "${#STUPORT[$i]}" 
 					cecho "${STUDPHONES[$i]}" blue      			;printspaces "${COLLONGEST[4]}" "${#STUDPHONES[$i]}" 
 					cecho "${STUEPHONES[$i]}" blue
-				fi
 				echo ""
+				fi
 			done
 		;;	
 	esac
@@ -288,6 +310,18 @@ classlist()
 		exit 1
 	else
 		showclass "$CLASSINDEX"
+	fi
+	
+}
+
+classports()
+{
+	getethers
+	getstudents
+	if ! chooseclass ;then
+		exit 1
+	else
+		showclass -p "$CLASSINDEX"
 	fi
 	
 }
@@ -482,6 +516,11 @@ createvm()
 	fi
 	if ! grep -q "${STUSIDS[$INDEX]}" "$TMPDIR/hosts" ;then
   		echo "${STUIP[$INDEX]} ${STUSIDS[$INDEX]}.${DOMAIN} ${STUSIDS[$INDEX]}" >> "$TMPDIR/hosts"	
+	fi
+	
+	#Add entry to salt-ssh roster
+	if ! grep -q "${STUSIDS[$INDEX]}" "$SALTDIR/roster" ;then
+  		echo "${STUSIDS[$INDEX]}: STUIP[$INDEX]" >> "$SALTDIR/roster"	
 	fi
 }
 
@@ -696,7 +735,8 @@ setupsan
 
 case "$1" in
 		listclass) 		classlist    		;;
-	    infoclass) 		classinfo    		;;
+	    listinfo) 		classinfo    		;;
+		listports)		classports			;;
 	    createvm)	 	createstudent	 	;;
 	    createclass) 	createclass 		;;
 	    createroster)	createroster "$2"	;;
