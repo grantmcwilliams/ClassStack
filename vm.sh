@@ -247,7 +247,7 @@ showclass()
 			COLLONGEST[2]=$(getcolwidth "${TITLES[2]}" "${STUIP[@]}")
 			COLLONGEST[3]=$(getcolwidth "${TITLES[3]}" "${STUPORT[@]}")
 			TITLEBARWIDTH=$(( ${COLLONGEST[0]} + $MINSPACE + ${COLLONGEST[1]} + $MINSPACE + ${COLLONGEST[2]} +  $MINSPACE + ${COLLONGEST[3]} ))
-			printtitlebar "Class List" "$TITLEBARWIDTH" black
+			printtitlebar "Student List" "$TITLEBARWIDTH" black
 			printheadings
 			for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
 				if [[ "${STUCLASSES[$i]}" = "${CLASSES[$INDEX]}" ]] ;then
@@ -266,7 +266,7 @@ showclass()
 			COLLONGEST[2]=$(getcolwidth "${TITLES[2]}" "${STUIP[@]}")
 			COLLONGEST[3]=$(getcolwidth "${TITLES[3]}" "${STUPORT[@]}")
 			TITLEBARWIDTH=$(( ${COLLONGEST[0]} + $MINSPACE + ${COLLONGEST[1]} + $MINSPACE + ${COLLONGEST[2]} +  $MINSPACE + ${COLLONGEST[3]} ))
-			printtitlebar "Class List" "$TITLEBARWIDTH" black
+			printtitlebar "Student Ports List" "$TITLEBARWIDTH" black
 			printheadings
 			for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
 				if [[ "${STUCLASSES[$i]}" = "${CLASSES[$INDEX]}" ]] ;then
@@ -285,7 +285,7 @@ showclass()
 			COLLONGEST[4]=$(getcolwidth "${TITLES[4]}" "${STUDPHONES[@]}")
 			COLLONGEST[5]=$(getcolwidth "${TITLES[5]}" "${STUEPHONES[@]}")
 			TITLEBARWIDTH=$(( ${COLLONGEST[0]} + $MINSPACE + ${COLLONGEST[1]} + $MINSPACE + ${COLLONGEST[2]} + $MINSPACE + ${COLLONGEST[3]}  + $MINSPACE + ${COLLONGEST[4]} + $MINSPACE + ${COLLONGEST[5]} ))
-			printtitlebar "Class Info" "$TITLEBARWIDTH" black
+			printtitlebar "Student Info" "$TITLEBARWIDTH" black
 			printheadings
 			for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
 				if [[ "${STUCLASSES[$i]}" = "${CLASSES[$INDEX]}" ]] ;then
