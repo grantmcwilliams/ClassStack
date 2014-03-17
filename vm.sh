@@ -72,7 +72,7 @@ syntax()
         cecho "	classrun" cyan ; echo " 	run command on all VMs in a class"
         cecho "	createvm" cyan; echo "	create a new student VM"
         cecho "	createclass" cyan; echo "	create VMs for all students in a class"
-        cecho "	createroster <IBC file" cyan; echo "	convert Instructor Briefcase screen to CSV"
+        cecho "	createroster <IBC file>" cyan; echo "	convert Instructor Briefcase screen to CSV"
         cecho "	startvm" cyan; echo "	 	starts the VM for a student"
         cecho "	startclass" cyan; echo " 	starts the VMs for an entire class"
         cecho "	stopvm" cyan; echo " 		stops the VM for a student"
@@ -260,7 +260,7 @@ showclass()
 			done
 		;;
 		"ports")
-			TITLES=( 'Name' 'SID' 'IP' 'Port' )
+			TITLES=( 'Name' 'Port' )
 			COLLONGEST[0]=$(getcolwidth "${TITLES[0]}" "${STUNAMES[@]}")
 			COLLONGEST[1]=$(getcolwidth "${TITLES[1]}" "${STUSIDS[@]}")
 			COLLONGEST[2]=$(getcolwidth "${TITLES[2]}" "${STUIP[@]}")
