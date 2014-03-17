@@ -230,12 +230,12 @@ showclass()
 
 	local MODE="standard"
 	while getopts :vp opt ;do
-        case $opt in
-                v) local MODE="verbose" ;;
-                p) local MODE="ports" ;;
-        esac
+        	case $opt in
+                	v) local MODE="verbose" ;;
+                	p) local MODE="ports" ;;
+        	esac
 	done
-	#shift $(($OPTIND - 1))
+	shift $(($OPTIND - 1))
 	clear ; echo ""
 	INDEX="$1"
 	fsort_arrays STUNAMES STUSIDS STUDPHONES STUEPHONES STUIP STUPORT STUCLASSES STUMAC 
