@@ -19,7 +19,7 @@ setup()
 	DEFSPACE="5"
 	MAXVIFS="2"
 	MINSPACE="$DEFSPACE"
-	VERSION="0.2"
+	VERSION="0.3"
 	CLASSNET[0]="xenbr1"
 	CLASSNET[1]="xenbr0"
 	MEMMIN=805306368
@@ -58,30 +58,30 @@ syntax()
 		cecho "	Version: " cyan ; echo "	$VERSION"
 		echo ""
         cecho "	Options:" blue ; echo ""
-        cecho "	-d" cyan ; echo "		turn on shell debugging"
-        cecho "	-h" cyan ; echo "		this help text"
-        cecho "	-w" cyan ; echo "		number of whitespaces between columns"
-        cecho "	-s <host>" cyan ; echo "	remote poolmaster host"
-        cecho "	-s list" cyan ; echo "		list stored poolmaster configs"
-        cecho "	-p <password>" cyan ; echo "	remote poolmaster password"
+        cecho "	-d" cyan ; echo "			turn on shell debugging"
+        cecho "	-h" cyan ; echo "			this help text"
+        cecho "	-w" cyan ; echo "			number of whitespaces between columns"
+        cecho "	-s <host>" cyan ; echo "		remote poolmaster host"
+        cecho "	-s list" cyan ; echo "			list stored poolmaster configs"
+        cecho "	-p <password>" cyan ; echo "		remote poolmaster password"
         echo ""
         cecho "	Subcommands:" blue ;echo""
-        cecho "	listclass" cyan; echo " 	list students, SIDs, IPs and ports"
-        cecho "	listports" cyan; echo " 	list students and their ports"
-        cecho "	listinfo" cyan; echo " 	list information about students"
-        cecho "	listconsoles" cyan; echo "	list consoles for VMs"
-        cecho "	classrun" cyan ; echo " 	run command on all VMs in a class"
-        cecho "	createvm" cyan; echo "	create a new student VM"
-        cecho "	createclass" cyan; echo "	create VMs for all students in a class"
+        cecho "	listclass" cyan; echo " 		list students, SIDs, IPs and ports"
+        cecho "	listports" cyan; echo " 		list students and their ports"
+        cecho "	listinfo" cyan; echo " 		list information about students"
+        cecho "	listconsoles" cyan; echo "		list consoles for VMs"
+        cecho "	classrun" cyan ; echo " 		run command on all VMs in a class"
+        cecho "	createvm" cyan; echo "		create a new student VM"
+        cecho "	createclass" cyan; echo "		create VMs for all students in a class"
         cecho "	createroster <IBC file>" cyan; echo "	convert Instructor Briefcase screen to CSV"
-        cecho "	startvm" cyan; echo "	 	starts the VM for a student"
-        cecho "	startclass" cyan; echo " 	starts the VMs for an entire class"
-        cecho "	restartvm" cyan; echo "    	restarts the VM for a student"
-        cecho "	stopvm" cyan; echo " 		stops the VM for a student"
-        cecho "	stopclass" cyan; echo " 	stops the VMs for a class"
-        cecho "	deletevm" red; echo "	deletes the VM for a student"
-        cecho "	deleteclass" red;	echo "	deletes all VMs for an entire class"
-        cecho "	recreatevm" red; echo " 	shutdown, delete, create then start a vm"
+        cecho "	startvm" cyan; echo "	 		starts the VM for a student"
+        cecho "	startclass" cyan; echo " 		starts the VMs for an entire class"
+        cecho "	restartvm" cyan; echo "    		restarts the VM for a student"
+        cecho "	stopvm" cyan; echo " 			stops the VM for a student"
+        cecho "	stopclass" cyan; echo " 		stops the VMs for a class"
+        cecho "	deletevm" red; echo "		deletes the VM for a student"
+        cecho "	deleteclass" red;	echo "		deletes all VMs for an entire class"
+        cecho "	wipevm" red; echo " 			shutdown, delete, create then start a vm"
         echo ""
         exit
 }
@@ -649,6 +649,15 @@ startstudent()
     fi
 }
 
+startvm(){
+    title1 "Starting VM" ;echo ""
+	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
+    if [[ $(xe vm-list name-label="${STUSIDS[$STUDENTINDEX]}" params=power-state --minimal) = "halted" ]]; then
+		xe vm-start name-label="${STUSIDS[$STUDENTINDEX]}"
+		xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
+    fi	
+}
+
 restartstudent()
 {
 	getethers
@@ -762,8 +771,6 @@ wipeclass()
 
 recreatevm()
 {
-	echo "not done"
-	return
 	getethers
 	if ! choosestudent ;then
 		exit
@@ -820,7 +827,7 @@ case "$1" in
 	    createroster)	createroster "$2"	;;
 	    deletevm)		wipestudent			;;
 	    deleteclass)	wipeclass			;;
-	    recreatevm)		recreatevm			;;
+	    wipevm)			recreatevm			;;
 	    startvm)  	 	startstudent		;;
 	    startclass)		startclass			;;
 	    restartvm)  	restartstudent		;;
