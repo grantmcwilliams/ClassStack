@@ -68,13 +68,15 @@ syntax()
         cecho "	Subcommands:" blue ;echo""
         cecho "	listclass" cyan; echo " 	list students, SIDs, IPs and ports"
         cecho "	listports" cyan; echo " 	list students and their ports"
-        cecho "	listinfo" cyan; echo " 	show information about students"
+        cecho "	listinfo" cyan; echo " 	list information about students"
+        cecho "	listconsoles" cyan; echo "	list consoles for VMs"
         cecho "	classrun" cyan ; echo " 	run command on all VMs in a class"
         cecho "	createvm" cyan; echo "	create a new student VM"
         cecho "	createclass" cyan; echo "	create VMs for all students in a class"
         cecho "	createroster <IBC file>" cyan; echo "	convert Instructor Briefcase screen to CSV"
         cecho "	startvm" cyan; echo "	 	starts the VM for a student"
         cecho "	startclass" cyan; echo " 	starts the VMs for an entire class"
+        cecho "	restartvm" cyan; echo "    	restarts the VM for a student"
         cecho "	stopvm" cyan; echo " 		stops the VM for a student"
         cecho "	stopclass" cyan; echo " 	stops the VMs for a class"
         cecho "	deletevm" red; echo "	deletes the VM for a student"
@@ -225,6 +227,60 @@ getstudents()
 	done
 }
 
+showconsoles()
+{
+	clear ; echo ""
+	INDEX="$1" 
+	getcmddata vm-list params=name-label,dom-id,resident-on
+	getcmddata host-list params=uuid,name-label
+	for i in $(seq 0 $(( ${#vm_name_label[@]} - 1 )) ) ;do
+		VMNAME[$i]="${vm_name_label[$i]}"
+		VMDOMID[$i]="${vm_dom_id[$i]}"
+		HOSTUUID[$i]="${vm_resident_on[$i]}"
+		for j in $(seq 0 $(( ${#host_uuid[@]} - 1 )) ) ;do
+			if [[ ${HOSTUUID[$i]} = ${host_uuid[$j]} ]] ;then
+				STUFQDN=${host_name_label[$j]}
+				HOSTLABEL[$i]=${STUFQDN%%.*}
+			fi
+		done
+	done
+	
+	for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
+		for j in $(seq 0 $(( ${#VMNAME[@]} - 1 )) ) ;do
+			if [[ ${STUSIDS[$i]} = ${VMNAME[$j]} ]] ;then
+				STUDOMID[$i]=${VMDOMID[$j]}
+				STUHOSTLABLE[$i]=${HOSTLABEL[$j]}
+			fi
+		done
+	done
+	
+	#for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
+	#	STUCONSOLE[$i]=$(xe vm-list name-label=${STUSIDS[$i]} params=dom-id --minimal)
+	#	CLOUDHOSTUUID=$(xe vm-list name-label=${STUSIDS[$i]} params=resident-on --minimal)
+	#	STUFQDN=$(xe host-list uuid=$CLOUDHOSTUUID params=name-label --minimal)
+	#	STUHOST[$i]=${STUFQDN%%.*}
+	#done
+	
+	fsort_arrays STUNAMES STUCLASSES STUSIDS STUDOMID STUHOSTLABLE
+	TITLES=( 'Name' 'SID' 'Dom-id' 'Host' )
+	COLLONGEST[0]=$(getcolwidth "${TITLES[0]}" "${STUNAMES[@]}")
+	COLLONGEST[1]=$(getcolwidth "${TITLES[1]}" "${STUSIDS[@]}")
+	COLLONGEST[2]=$(getcolwidth "${TITLES[2]}" "${STUDOMID[@]}")
+	COLLONGEST[3]=$(getcolwidth "${TITLES[3]}" "${STUHOSTLABLE[@]}")
+	TITLEBARWIDTH=$(( ${COLLONGEST[0]} + $MINSPACE + ${COLLONGEST[1]} + $MINSPACE + ${COLLONGEST[2]} + $MINSPACE + ${COLLONGEST[3]} ))
+	printtitlebar "Console List" "$TITLEBARWIDTH" black
+	printheadings
+	for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do	
+		if [[ "${STUCLASSES[$i]}" = "${CLASSES[$INDEX]}" ]] ;then
+			cecho "${STUNAMES[$i]}" cyan 					;printspaces "${COLLONGEST[0]}" "${#STUNAMES[$i]}" 
+			cecho "${STUSIDS[$i]}" cyan 					;printspaces "${COLLONGEST[1]}" "${#STUSIDS[$i]}" 
+			cecho "${STUDOMID[$i]}" cyan 					;printspaces "${COLLONGEST[2]}" "${#STUDOMID[$i]}"     
+			cecho "${STUHOSTLABLE[$i]}" blue     			
+			echo ""
+		fi
+	done
+}
+
 showclass()
 {
 
@@ -238,7 +294,7 @@ showclass()
 	shift $(($OPTIND - 1))
 	clear ; echo ""
 	INDEX="$1"
-	fsort_arrays STUNAMES STUSIDS STUDPHONES STUEPHONES STUIP STUPORT STUCLASSES STUMAC 
+	fsort_arrays STUNAMES STUSIDS STUDPHONES STUEPHONES STUIP STUPORT STUCLASSES STUMAC
 	case "$MODE" in
 		"standard")
 			TITLES=( 'Name' 'SID' 'IP' 'Port' )
@@ -302,7 +358,7 @@ showclass()
 	esac
 }
 
-classlist()
+listclass()
 {
 	getethers
 	getstudents
@@ -311,10 +367,9 @@ classlist()
 	else
 		showclass "$CLASSINDEX"
 	fi
-	
 }
 
-classports()
+listports()
 {
 	getethers
 	getstudents
@@ -323,10 +378,21 @@ classports()
 	else
 		showclass -p "$CLASSINDEX"
 	fi
+}
+
+listconsoles()
+{
+	getethers
+	getstudents
+	if ! chooseclass ;then
+		exit 1
+	else
+		showconsoles "$CLASSINDEX"
+	fi
 	
 }
 
-classinfo()
+listinfo()
 {
 	getethers
 	getstudents
@@ -581,9 +647,20 @@ startstudent()
 		xe vm-start name-label="${STUSIDS[$STUDENTINDEX]}"
 		xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
     fi
-	
 }
 
+restartstudent()
+{
+	getethers
+	if ! choosestudent ;then
+		exit
+	fi
+	clear ; echo ""
+	title1 "Restarting VM" ;echo ""
+	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
+	xe vm-reboot name-label="${STUSIDS[$STUDENTINDEX]}"
+	xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
+}
 
 stopstudent()
 {
@@ -734,9 +811,10 @@ setupsan
 
 
 case "$1" in
-		listclass) 		classlist    		;;
-	    listinfo) 		classinfo    		;;
-		listports)		classports			;;
+		listclass) 		listclass    		;;
+	    listinfo) 		listinfo    		;;
+		listports)		listports			;;
+		listconsoles)	listconsoles		;;
 	    createvm)	 	createstudent	 	;;
 	    createclass) 	createclass 		;;
 	    createroster)	createroster "$2"	;;
@@ -745,6 +823,8 @@ case "$1" in
 	    recreatevm)		recreatevm			;;
 	    startvm)  	 	startstudent		;;
 	    startclass)		startclass			;;
+	    restartvm)  	restartstudent		;;
+	    rebootvm)  		restartstudent		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
 	    runclass)		runclass "$2"		;;
