@@ -443,7 +443,7 @@ createroster()
 		fi 
 	fi
 
-	COURSE=$(grep -A1 QUARTER ${IBCFILE} | tail -n1 | awk -F'\t' '{print $3}')
+	COURSE=$(grep -A1 QUARTER ${IBCFILE} | tail -n1 | awk -F'\t' '{print $3}' | sed 's/^[ \t]*//;s/[ \t]*$//')
 	for LINE in $(cat "$IBCFILE") ;do
 		if echo "$LINE" | grep -q '^[0-9]' ;then
 			NEWLINE=$(echo "$LINE" | sed 's/\t/,/g' | awk -F, '{print $2","$3","$5","$6","$7}')
