@@ -77,11 +77,12 @@ syntax()
         cecho "	startvm" cyan; echo "	 		starts the VM for a student"
         cecho "	startclass" cyan; echo " 		starts the VMs for an entire class"
         cecho "	restartvm" cyan; echo "    		restarts the VM for a student"
+        cecho "	restartclass" cyan; echo "    		restarts the VM for a student"
         cecho "	stopvm" cyan; echo " 			stops the VM for a student"
         cecho "	stopclass" cyan; echo " 		stops the VMs for a class"
         cecho "	deletevm" red; echo "		deletes the VM for a student"
         cecho "	deleteclass" red;	echo "		deletes all VMs for an entire class"
-        cecho "	wipevm" red; echo " 			shutdown, delete, create then start a vm"
+        cecho "	recreatevm" red; echo " 			shutdown, delete, create then start a vm"
         echo ""
         exit
 }
@@ -507,11 +508,21 @@ createvm()
 	
 	#Change the name of xvda to ${STUNAMES[$INDEX]}_0 e.g. 987654321_0
 	echo "Configuring Hard drives"
-	VDIUUID=$(xe vbd-list vm-uuid="${STUUUID[$INDEX]}" device=xvda params=vdi-uuid --minimal)
-	VDINAME=$(xe vdi-param-get uuid="$VDIUUID" param-name=name-label)
-	if [[ ! "$VDINAME" = "${STUSIDS[$INDEX]}_0" ]] ;then
-		cecho "*" cyan ;echo "     Setting name-label for xvda"
-		xe vdi-param-set uuid="$VDIUUID" name-label="${STUSIDS[$INDEX]}_0"
+	VDINUM=$(xe vbd-list vm-uuid="${STUUUID[$INDEX]}" params=vdi-uuid --minimal | wc -l)
+	if [[ $VDINUM -eq 1 ]] ;then
+		VDIUUID=$(xe vbd-list vm-uuid="${STUUUID[$INDEX]}" params=vdi-uuid --minimal)
+	else
+		VDIUUID=$(xe vbd-list vm-uuid="${STUUUID[$INDEX]}" device=xvda params=vdi-uuid --minimal)
+	fi
+	if [[ ! -z $VDIUUID ]] ;then
+		VDINAME=$(xe vdi-param-get uuid="$VDIUUID" param-name=name-label)
+		if [[ ! "$VDINAME" = "${STUSIDS[$INDEX]}_0" ]] ;then
+			cecho "*" cyan ;echo "     Setting name-label for xvda"
+			xe vdi-param-set uuid="$VDIUUID" name-label="${STUSIDS[$INDEX]}_0"
+		fi
+	else
+		cecho "*" red ;echo "     VDIUUID empty for ${STUNAMES[$INDEX]}"
+		return 1
 	fi
 
 	#Create new SSD disks
@@ -671,6 +682,26 @@ restartstudent()
 	xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
 }
 
+restartclass()
+{
+	getethers
+	getstudents
+	if ! chooseclass;then
+		exit
+	fi
+	clear ; echo ""
+	title1 "Restarting ${CLASSES[$CLASSINDEX]} VMs" ;echo ""
+	for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
+		if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
+			cecho "*" cyan ;echo "     ${STUSIDS[$i]}"
+			if [[ $(xe vm-list name-label="${STUSIDS[$i]}" params=power-state --minimal) = "halted" ]]; then
+				xe vm-reboot name-label="${STUSIDS[$i]}"
+				xe event-wait class=vm power-state=running name-label="${STUSIDS[$i]}"
+			fi
+		fi
+	done
+}
+
 stopstudent()
 {
 	getethers
@@ -727,7 +758,7 @@ wipevm()
 		title1 "Uninstalling VM for ${STUSIDS[$INDEX]}" ;echo ""
 		if [[ $(xe vm-param-get uuid="${STUUUID[$INDEX]}" param-name=power-state) == "running" ]] ;then
 			cecho "*" cyan ;echo "	Shutting down VM ${STUSIDS[$INDEX]}" 
-			xe vm-shutdown uuid="${STUUUID[$INDEX]}"
+			xe vm-shutdown uuid="${STUUUID[$INDEX]}" force=true
 			xe event-wait class=vm power-state=halted uuid="${STUUUID[$INDEX]}"
 			cecho "*" cyan ;echo "     Shutdown succeeded for ${STUSIDS[$INDEX]}"
 		fi
@@ -827,11 +858,11 @@ case "$1" in
 	    createroster)	createroster "$2"	;;
 	    deletevm)		wipestudent			;;
 	    deleteclass)	wipeclass			;;
-	    wipevm)			recreatevm			;;
+	    recreatevm)		recreatevm			;;
 	    startvm)  	 	startstudent		;;
 	    startclass)		startclass			;;
 	    restartvm)  	restartstudent		;;
-	    rebootvm)  		restartstudent		;;
+		restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
 	    runclass)		runclass "$2"		;;
