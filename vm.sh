@@ -19,7 +19,7 @@ setup()
 	DEFSPACE="5"
 	MAXVIFS="2"
 	MINSPACE="$DEFSPACE"
-	VERSION="0.3"
+	VERSION="0.4"
 	CLASSNET[0]="xenbr1"
 	CLASSNET[1]="xenbr0"
 	MEMMIN=805306368
@@ -58,31 +58,32 @@ syntax()
 		cecho "	Version: " cyan ; echo "	$VERSION"
 		echo ""
         cecho "	Options:" blue ; echo ""
-        cecho "	-d" cyan ; echo "			turn on shell debugging"
-        cecho "	-h" cyan ; echo "			this help text"
-        cecho "	-w" cyan ; echo "			number of whitespaces between columns"
-        cecho "	-s <host>" cyan ; echo "		remote poolmaster host"
-        cecho "	-s list" cyan ; echo "			list stored poolmaster configs"
-        cecho "	-p <password>" cyan ; echo "		remote poolmaster password"
+        cecho "	 -d" cyan ; echo "				Turn on shell debugging"
+        cecho "	 -h" cyan ; echo "				This help text"
+        cecho "	 -w" cyan ; echo "				Number of whitespaces between columns"
+        cecho "	 -s <host>" cyan ; echo "			Remote poolmaster host"
+        cecho "	 -s list" cyan ; echo "			List stored poolmaster configs"
+        cecho "	 -p <password>" cyan ; echo "			Remote poolmaster password"
         echo ""
         cecho "	Subcommands:" blue ;echo""
-        cecho "	listclass" cyan; echo " 		list students, SIDs, IPs and ports"
-        cecho "	listports" cyan; echo " 		list students and their ports"
-        cecho "	listinfo" cyan; echo " 		list information about students"
-        cecho "	listconsoles" cyan; echo "		list consoles for VMs"
-        cecho "	classrun" cyan ; echo " 		run command on all VMs in a class"
-        cecho "	createvm" cyan; echo "		create a new student VM"
-        cecho "	createclass" cyan; echo "		create VMs for all students in a class"
-        cecho "	createroster <IBC file>" cyan; echo "	convert Instructor Briefcase screen to CSV"
-        cecho "	startvm" cyan; echo "	 		starts the VM for a student"
-        cecho "	startclass" cyan; echo " 		starts the VMs for an entire class"
-        cecho "	restartvm" cyan; echo "    		restarts the VM for a student"
-        cecho "	restartclass" cyan; echo "    		restarts the VM for a student"
-        cecho "	stopvm" cyan; echo " 			stops the VM for a student"
-        cecho "	stopclass" cyan; echo " 		stops the VMs for a class"
-        cecho "	deletevm" red; echo "		deletes the VM for a student"
-        cecho "	deleteclass" red;	echo "		deletes all VMs for an entire class"
-        cecho "	recreatevm" red; echo " 			shutdown, delete, create then start a vm"
+        cecho "	 listclass" cyan; echo " 			List students, SIDs, IPs and ports"
+        cecho "	 listports" cyan; echo " 			List students and their ports"
+        cecho "	 listinfo" cyan; echo " 			List information about students"
+        cecho "	 listconsoles" cyan; echo "			List consoles for VMs"
+        cecho "	 runvm" cyan ; echo " 				Run command on VM"
+        cecho "	 runclass" cyan ; echo " 			Run command on all VMs in a class"
+        cecho "	 createvm" cyan; echo "			Create VM for student"
+        cecho "	 createclass" cyan; echo "			Create VMs for class"
+        cecho "	 createroster <IBC file>" cyan; echo "	Convert Instructor Briefcase screen to CSV"
+        cecho "	 startvm" cyan; echo "	 		Start VM for student"
+        cecho "	 startclass" cyan; echo " 			Start VMs for class"
+        cecho "	 restartvm" cyan; echo "    			Restart VM for student"
+        cecho "	 restartclass" cyan; echo "    		Restarts VMs for class"
+        cecho "	 stopvm" cyan; echo " 			Stops VM for student"
+        cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
+        cecho "	 deletevm" red; echo "			Delete VM for student"
+        cecho "	 deleteclass" red;	echo "			Delete VMs for class"
+        cecho "	 recreatevm" red; echo " 			Shutdown, recreate, start a VM"
         echo ""
         exit
 }
@@ -772,6 +773,10 @@ wipevm()
 			cecho "*" cyan ;echo "     $LINE" 
 		done
 	fi
+	#Remove salt key
+	if salt-key -L all | grep ${STUSIDS[$INDEX]}.acs.edcc.edu ;then
+		salt-key -d ${STUSIDS[$INDEX]}.acs.edcc.edu
+	fi
 }
 
 wipestudent()
@@ -780,7 +785,9 @@ wipestudent()
 	if ! choosestudent ;then
 		exit
 	fi
-	wipevm "$STUDENTINDEX"
+	if ! wipevm "$STUDENTINDEX" ;then
+		cecho "*" red ;echo "     Unable to wipe $STUDENTINDEX" 
+	fi
 }
 
 
@@ -795,7 +802,9 @@ wipeclass()
 	echo "Wiping ${CLASSES[$CLASSINDEX]} VMs"
 	for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
 		if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
-			wipevm "$i"
+			if ! wipevm "$i" ;then
+				cecho "*" red ;echo "     Unable to wipe $i" 
+			fi
 		fi
 	done
 }
@@ -806,7 +815,10 @@ recreatevm()
 	if ! choosestudent ;then
 		exit
 	fi
-	wipevm "$STUDENTINDEX"
+	if ! wipevm "$STUDENTINDEX" ;then
+		cecho "*" red ;echo "     Unable to wipe $i" 
+		return 1
+	fi
 	createvm "$STUDENTINDEX" 
 	startvm "$STUDENTINDEX" 
 }
@@ -865,6 +877,7 @@ case "$1" in
 		restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
+	    runvm)			runvm "$2"			;;
 	    runclass)		runclass "$2"		;;
 	    *)         		syntax       		;;
 esac
