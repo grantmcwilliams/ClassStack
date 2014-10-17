@@ -19,7 +19,7 @@ setup()
 	DEFSPACE="5"
 	MAXVIFS="2"
 	MINSPACE="$DEFSPACE"
-	VERSION="0.4"
+	VERSION="0.5"
 	CLASSNET[0]="xenbr1"
 	CLASSNET[1]="xenbr0"
 	MEMMIN=805306368
@@ -66,23 +66,24 @@ syntax()
         cecho "	 -p <password>" cyan ; echo "			Remote poolmaster password"
         echo ""
         cecho "	Subcommands:" blue ;echo""
+        cecho "	 acceptkeys" cyan; echo "		  	Accept Salt keys"
+        cecho "	 createvm" cyan; echo "			Create VM for student"
+        cecho "	 createclass" cyan; echo "			Create VMs for class"
+        cecho "	 createroster <IBC file>" cyan; echo "	Convert Instructor Briefcase screen to CSV"
         cecho "	 listclass" cyan; echo " 			List students, SIDs, IPs and ports"
         cecho "	 listports" cyan; echo " 			List students and their ports"
         cecho "	 listinfo" cyan; echo " 			List information about students"
         cecho "	 listconsoles" cyan; echo "			List consoles for VMs"
 		cecho "	 listrunning" cyan; echo "			List power-state for VMs"
-        cecho "	 runvm" cyan ; echo " 				Run command on VM"
-        cecho "	 runclass" cyan ; echo " 			Run command on all VMs in a class"
-        cecho "	 createvm" cyan; echo "			Create VM for student"
-        cecho "	 createclass" cyan; echo "			Create VMs for class"
-        cecho "	 createroster <IBC file>" cyan; echo "	Convert Instructor Briefcase screen to CSV"
         cecho "	 startvm" cyan; echo "	 		Start VM for student"
         cecho "	 startclass" cyan; echo " 			Start VMs for class"
         cecho "	 restartvm" cyan; echo "    			Restart VM for student"
         cecho "	 restartclass" cyan; echo "    		Restarts VMs for class"
+        cecho "	 runvm" cyan ; echo " 				Run command on VM"
+        cecho "	 runclass" cyan ; echo " 			Run command on all VMs in a class"
         cecho "	 stopvm" cyan; echo " 			Stops VM for student"
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
-        cecho "  acceptkeys" cyan; echo "            Accept Salt keys"
+        cecho "	 updategrains" cyan; echo "			Append class grain to VMs"
         cecho "	 deletevm" red; echo "			Delete VM for student"
         cecho "	 deleteclass" red;	echo "			Delete VMs for class"
         cecho "	 recreatevm" red; echo " 			Shutdown, recreate, start a VM"
@@ -127,26 +128,49 @@ putethers()
 
 acceptkeys()
 {
-	
-	select CHOICE in $(salt-key -l un) "All" "Exit" ;do
-		case "$CHOICE" in
-			"Exit")	
-				return 1	
-			;;
-			"All")
-				salt-key -A
-				return 0
-			;;
-			*) 
-				salt-key -a "$CHOICE" -y
-			;;
-		esac
+	PS3="Please choose keys to accept: "
+	while true ;do
+		clear
+		echo ""
+		KEYS=$(salt-key -l unaccepted | grep -v 'Unaccepted Keys:')
+		if [[ -z "$KEYS" ]] ;then
+			echo "All keys accepted - exiting"
+			exit 
+		else
+			select CHOICE in ${KEYS} "All" "Exit" ;do
+				case "$CHOICE" in
+					"Exit")	
+						break 2 ;;	
+					"All")
+						salt-key -A
+						break 2 ;;
+					*) 
+						salt-key -a "$CHOICE" -y
+						sleep 2
+						break ;;
+				esac
+			done
+		fi
 	done
+}
+
+runstudent()
+{   
+	shift
+	COMMAND="$@"
+	getethers
+	if ! choosestudent ;then
+		exit
+	fi
+	clear ; echo ""
+	runvm "${STUSIDS[$STUDENTINDEX]}" "${COMMAND}"
 }
 
 runclass()
 {
-	if [[ -z $1 ]] ;then
+	shift
+	COMMAND="$@"
+	if [[ -z ${COMMAND} ]] ;then
 		warn "No command to run" ; echo ""
 	else
 		getethers
@@ -158,16 +182,20 @@ runclass()
 		title1 "Running $1 on ${CLASSES[$CLASSINDEX]} VMs" ;echo ""
 		for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
 			if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
-				cecho "*" cyan ;echo "     ${STUSIDS[$i]}"
-				
+				runvm "${STUSIDS[$i]}" "${COMMAND}"
 			fi
 		done
 	fi
 }
 
-runcommand()
+runvm()
 {
-	title1 "Running $2 on $1" ; echo ""
+	VM="${1}"
+	shift
+	COMMAND="${@}"
+    if [[ $(xe vm-list name-label="${VM}" params=power-state --minimal) = "running" ]]; then
+		salt "${VM}.${DOMAIN}" cmd.run "${COMMAND}" 
+    fi	
 }
 
 getclasses()
@@ -667,38 +695,23 @@ startclass()
 }
 
 startstudent()
-{
-	#Classserver always has to be running before student VMs to provide DHCP/NFS/DNS
-    #if [[ -z $(xe vm-list -s $CLOUDCONTROL -u root -pw $CLOUDPASS name-label=classserver params=uuid --minimal) ]] ;then
-	#	echo "VM classserver doesn't exist"
-	#	exit 1
-    #fi
-    
-    #CSSSTATE=$(xe -s $CLOUDCONTROL -u root -pw $CLOUDPASS vm-list name-label=classserver params=power-state --minimal)
-    #if [ "${CSSSTATE}" = "halted" ]; then
-	#	xe vm-start -s $CLOUDCONTROL -u root -pw $CLOUDPASS name-label=classserver
-	#	xe event-wait -s $CLOUDCONTROL -u root -pw $CLOUDPASS class=vm power-state=running name-label=classserver
-    #fi
-    
+{   
 	getethers
 	if ! choosestudent ;then
 		exit
 	fi
 	clear ; echo ""
-	title1 "Starting VM" ;echo ""
-	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
-    if [[ $(xe vm-list name-label="${STUSIDS[$STUDENTINDEX]}" params=power-state --minimal) = "halted" ]]; then
-		xe vm-start name-label="${STUSIDS[$STUDENTINDEX]}"
-		xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
-    fi
+	starvm "${STUSIDS[$STUDENTINDEX]}"
 }
 
-startvm(){
+startvm()
+{
+	VM="$1"
     title1 "Starting VM" ;echo ""
-	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
-    if [[ $(xe vm-list name-label="${STUSIDS[$STUDENTINDEX]}" params=power-state --minimal) = "halted" ]]; then
-		xe vm-start name-label="${STUSIDS[$STUDENTINDEX]}"
-		xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
+	cecho "*" cyan ;echo "     ${VM}"
+    if [[ $(xe vm-list name-label="${VM}" params=power-state --minimal) = "halted" ]]; then
+		xe vm-start name-label="${VM}"
+		xe event-wait class=vm power-state=running name-label="${VM}"
     fi	
 }
 
@@ -770,6 +783,18 @@ stopclass()
 				xe event-wait class=vm power-state=halted uuid="${VMUUID}"
 			fi
 		fi
+	done
+}
+
+
+updategrains()
+{
+	getethers
+	getstudents
+	title1 "Updating grains for all VMs" ;echo ""
+	
+	for i in $(seq 0 $(( ${#STUSIDS[@]} - 1 )) ) ;do 
+		salt "${STUSIDS[$i]}.acs.edcc.edu" grains.append classes "${STUCLASSES[$i]}"
 	done
 }
 
@@ -847,12 +872,12 @@ recreatevm()
 	if ! choosestudent ;then
 		exit
 	fi
-	if ! wipevm "$STUDENTINDEX" ;then
+	if ! wipevm "${STUDENTINDEX}" ;then
 		cecho "*" red ;echo "     Unable to wipe $i" 
 		return 1
 	fi
-	createvm "$STUDENTINDEX" 
-	startvm "$STUDENTINDEX" 
+	createvm "${STUDENTINDEX}" 
+	startvm "${STUDENTINDEX}" 
 }
 
 title1()
@@ -910,8 +935,10 @@ case "$1" in
 		restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
-	    runvm)			runvm "$2"			;;
-	    runclass)		runclass "$2"		;;
+	    runvm)			runstudent "$@"		;;
+	    runclass)		runclass "$@"		;;
+	    acceptkeys)     acceptkeys			;;
+	    updategrains)   updategrains        ;;
 	    *)         		syntax       		;;
 esac
 
