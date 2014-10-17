@@ -70,6 +70,7 @@ syntax()
         cecho "	 listports" cyan; echo " 			List students and their ports"
         cecho "	 listinfo" cyan; echo " 			List information about students"
         cecho "	 listconsoles" cyan; echo "			List consoles for VMs"
+		cecho "	 listrunning" cyan; echo "			List power-state for VMs"
         cecho "	 runvm" cyan ; echo " 				Run command on VM"
         cecho "	 runclass" cyan ; echo " 			Run command on all VMs in a class"
         cecho "	 createvm" cyan; echo "			Create VM for student"
@@ -81,6 +82,7 @@ syntax()
         cecho "	 restartclass" cyan; echo "    		Restarts VMs for class"
         cecho "	 stopvm" cyan; echo " 			Stops VM for student"
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
+        cecho "  acceptkeys" cyan; echo "            Accept Salt keys"
         cecho "	 deletevm" red; echo "			Delete VM for student"
         cecho "	 deleteclass" red;	echo "			Delete VMs for class"
         cecho "	 recreatevm" red; echo " 			Shutdown, recreate, start a VM"
@@ -120,6 +122,25 @@ putethers()
 	OUT=$(ssh -p 1022 classserver "service dnsmasq restart")
 	for LINE in $OUT ;do
 		cecho "*" cyan ;echo "     $LINE"
+	done
+}
+
+acceptkeys()
+{
+	
+	select CHOICE in $(salt-key -l un) "All" "Exit" ;do
+		case "$CHOICE" in
+			"Exit")	
+				return 1	
+			;;
+			"All")
+				salt-key -A
+				return 0
+			;;
+			*) 
+				salt-key -a "$CHOICE" -y
+			;;
+		esac
 	done
 }
 
@@ -405,6 +426,17 @@ listinfo()
 	fi
 }
 
+listrunning()
+{
+	getethers
+	getstudents
+	if ! chooseclass ;then
+		exit 1
+	else
+		showrunning "$CLASSINDEX"
+	fi
+}
+
 createclass()
 {
 	getethers
@@ -476,19 +508,19 @@ createvm()
 	local INDEX="$1"
 	title1 "Creating VM for ${STUSIDS[$INDEX]}" ; echo ""
 	#Get studentbase UUID, if it's running shut it down
+	if [[ ! -z $(xe vm-list name-label="${STUSIDS[$INDEX]}") ]] ;then
+		cecho "VM exists: " cyan ; echo "${STUSIDS[$INDEX]} - skipping"
+		return 1
+	fi
+	
 	BASEUUID=$(xe vm-list name-label="${BASEIMAGE}" --minimal)
 	if [ $(xe vm-param-get uuid="${BASEUUID}" param-name=power-state) == 'running' ]; then
 	    xe vm-shutdown uuid="${BASEUUID}"
 	    xe event-wait class=vm power-state=halted uuid="${BASEUUID}"
 	fi
 	
-	#If a VM named ${STUNAMES[$INDEX]} does not exist then clone it
-	if [[ -z $(xe vm-list name-label="${STUSIDS[$INDEX]}") ]] ;then
-		STUUUID[$INDEX]=$(xe vm-clone uuid="${BASEUUID}" new-name-label="${STUSIDS[$INDEX]}")
-	else
-		cecho "VM exists: " cyan ; echo "${STUSIDS[$INDEX]}"
-		STUUUID[$INDEX]=$(xe vm-list name-label="${STUSIDS[$INDEX]}" params=uuid --minimal)
-	fi
+	#Clone base VM
+	STUUUID[$INDEX]=$(xe vm-clone uuid="${BASEUUID}" new-name-label="${STUSIDS[$INDEX]}")
 	
 	#Configure Network for ${STUUUID[$INDEX]}
 	if [[ ! $(xe vm-param-get uuid="${STUUUID[$INDEX]}" param-name=power-state) == 'running' ]]; then
@@ -775,7 +807,7 @@ wipevm()
 	fi
 	#Remove salt key
 	if salt-key -L all | grep ${STUSIDS[$INDEX]}.acs.edcc.edu ;then
-		salt-key -d ${STUSIDS[$INDEX]}.acs.edcc.edu
+		salt-key -q -y -d ${STUSIDS[$INDEX]}.acs.edcc.edu
 	fi
 }
 
@@ -865,6 +897,7 @@ case "$1" in
 	    listinfo) 		listinfo    		;;
 		listports)		listports			;;
 		listconsoles)	listconsoles		;;
+		listrunning)	listconsoles		;;
 	    createvm)	 	createstudent	 	;;
 	    createclass) 	createclass 		;;
 	    createroster)	createroster "$2"	;;
