@@ -3,7 +3,8 @@ Classstack is an XCP/Xenserver management stack for classroom environments. It's
 My Setup
 ========
 
-1. 8 core iSCSI SAN host with 1 Hard disk and 3 Solid State disks with 3 network cards
+1. 8 core host with a 2 disk RAID with 3 network cards to manage routing, central management
+2. 4 core iSCSI SAN with 3 SSDs and 4 Hard disks with 4 network cards
 2. 6 core host with no local storage repository with 2 network cards
 3. 6 core host with no local storage repository with 2 network cards
 4. 6 core host with no local storage repository with 2 network cards
