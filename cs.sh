@@ -798,6 +798,18 @@ updategrains()
 	done
 }
 
+updateconfig()
+{
+	getethers
+	getstudents
+	if ! chooseclass;then
+		exit
+	fi
+	clear ; echo ""
+	title1 "Updating config for ${CLASSES[$CLASSINDEX]} VMs" ;echo ""
+	salt -G classes:${CLASSES[$CLASSINDEX]} state.highstate
+}
+
 wipevm()
 {
 	#Pass the INDEX number from the student SID in "${STUSIDS[$INDEX]}"
@@ -939,6 +951,7 @@ case "$1" in
 	    runclass)		runclass "$@"		;;
 	    acceptkeys)     acceptkeys			;;
 	    updategrains)   updategrains        ;;
+	    updateconfig)	updateconfig		;;
 	    *)         		syntax       		;;
 esac
 
