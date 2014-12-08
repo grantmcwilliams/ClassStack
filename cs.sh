@@ -81,6 +81,7 @@ syntax()
         cecho "	 restartclass" cyan; echo "    		Restarts VMs for class"
         cecho "	 runvm" cyan ; echo " 				Run command on VM"
         cecho "	 runclass" cyan ; echo " 			Run command on all VMs in a class"
+        cecho "	 showconsole" cyan ; echo " 			Show VM console for student"
         cecho "	 stopvm" cyan; echo " 			Stops VM for student"
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
         cecho "	 updategrains" cyan; echo "			Append class grain to VMs"
@@ -409,6 +410,50 @@ showclass()
 	esac
 }
 
+
+consolestudent()
+{
+	getethers
+	if ! choosestudent ;then
+		exit
+	fi
+
+        getconsole "${STUSIDS[STUDENTINDEX]}"
+	showconsole "$HOSTLABEL" "$VMDOMID"
+}
+
+getconsole()
+{
+        STUDENTID="$1"
+     	getcmddata vm-list params=name-label,dom-id,resident-on
+        getcmddata host-list params=uuid,name-label
+        for i in $(seq 0 $(( ${#vm_name_label[@]} - 1 )) ) ;do
+                VMNAME="${vm_name_label[$i]}"
+                if [[ $VMNAME = ${STUDENTID} ]] ;then
+                	VMDOMID="${vm_dom_id[$i]}"
+                	HOSTUUID="${vm_resident_on[$i]}"
+			for j in $(seq 0 $(( ${#host_uuid[@]} - 1 )) ) ;do
+                        	if [[ ${HOSTUUID} = ${host_uuid[$j]} ]] ;then
+                                	STUFQDN=${host_name_label[$j]}
+                                	HOSTLABEL=${STUFQDN%%.*}
+                       	 	fi
+                	done
+                fi
+        done
+}
+
+showconsole()
+{
+   	CLOUDHOST="$1"
+	CONSOLE="$2"
+
+	echo "Hit enter to see console"
+	echo "Press control-c to exit console"
+        sleep 3
+	ssh root@${CLOUDHOST} /usr/lib/xen/bin/xenconsole ${CONSOLE}
+}
+
+
 listclass()
 {
 	getethers
@@ -701,7 +746,7 @@ startstudent()
 		exit
 	fi
 	clear ; echo ""
-	starvm "${STUSIDS[$STUDENTINDEX]}"
+	startvm "${STUSIDS[$STUDENTINDEX]}"
 }
 
 startvm()
@@ -947,6 +992,7 @@ case "$1" in
 		restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
+            showconsole)        consolestudent			;;
 	    runvm)			runstudent "$@"		;;
 	    runclass)		runclass "$@"		;;
 	    acceptkeys)     acceptkeys			;;
