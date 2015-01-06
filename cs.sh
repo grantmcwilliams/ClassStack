@@ -85,6 +85,7 @@ syntax()
         cecho "	 stopvm" cyan; echo " 			Stops VM for student"
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
         cecho "	 updategrains" cyan; echo "			Append class grain to VMs"
+        cecho "	 updatebase" cyan; echo "			Update Base Image"
         cecho "	 deletevm" red; echo "			Delete VM for student"
         cecho "	 deleteclass" red;	echo "			Delete VMs for class"
         cecho "	 recreatevm" red; echo " 			Shutdown, recreate, start a VM"
@@ -448,9 +449,9 @@ showconsole()
 	CONSOLE="$2"
 
 	echo "Hit enter to see console"
-	echo "Press control-c to exit console"
+	echo "Type exit to logout and control ] to exit console"
         sleep 3
-	ssh root@${CLOUDHOST} /usr/lib/xen/bin/xenconsole ${CONSOLE}
+	ssh -t root@${CLOUDHOST} /usr/lib/xen/bin/xenconsole ${CONSOLE}
 }
 
 
@@ -702,9 +703,9 @@ createvm()
 	fi
 	
 	#Add entry to salt-ssh roster
-	if ! grep -q "${STUSIDS[$INDEX]}" "$SALTDIR/roster" ;then
-  		echo "${STUSIDS[$INDEX]}: STUIP[$INDEX]" >> "$SALTDIR/roster"	
-	fi
+	grep -v "${STUSIDS[$INDEX]}" "${SALTDIR}/roster" > "${TMPDIR}/roster"
+	echo "${STUSIDS[$INDEX]}: ${STUIP[$INDEX]}" >> "${TMPDIR}/roster"
+	cat "${TMPDIR}/roster" > "${SALTDIR}/roster}"
 }
 
 startclass()
@@ -855,6 +856,19 @@ updateconfig()
 	salt -G classes:${CLASSES[$CLASSINDEX]} state.highstate
 }
 
+updatebaseimage()
+{
+	BASEUUID=$(xe vm-list name-label="${BASEIMAGE}" --minimal)
+	if [ $(xe vm-param-get uuid="${BASEUUID}" param-name=power-state) == 'halted' ]; then
+	    xe vm-start uuid="${BASEUUID}"
+	    xe event-wait class=vm power-state=running uuid="${BASEUUID}"
+	fi
+    BASEDOMID=$(xe vm-list uuid="${BASEUUID}" params=dom-id --minimal)
+	BASEHOSTUUID=$(xe vm-list uuid="${BASEUUID}" params=resident-on --minimal)
+	BASEHOSTNAME=$(xe host-list uuid="${BASEHOSTUUID}" params=hostname --minimal)
+	showconsole "${BASEHOSTNAME}" "${BASEDOMID}"
+}
+
 wipevm()
 {
 	#Pass the INDEX number from the student SID in "${STUSIDS[$INDEX]}"
@@ -992,12 +1006,13 @@ case "$1" in
 		restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
-            showconsole)        consolestudent			;;
+        showconsole)    consolestudent	    ;;
 	    runvm)			runstudent "$@"		;;
 	    runclass)		runclass "$@"		;;
 	    acceptkeys)     acceptkeys			;;
 	    updategrains)   updategrains        ;;
 	    updateconfig)	updateconfig		;;
+	    updatebase)     updatebaseimage    ;;
 	    *)         		syntax       		;;
 esac
 
