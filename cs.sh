@@ -240,6 +240,7 @@ choosestudent()
 	local -a INDEX
 	getstudents
 	
+	fsort_arrays STUNAMES
 	select CHOICE in ${STUNAMES[@]} "Exit" ;do
 		case "$CHOICE" in
 			"Exit")	
@@ -419,7 +420,7 @@ consolestudent()
 		exit
 	fi
 
-        getconsole "${STUSIDS[STUDENTINDEX]}"
+    getconsole "${STUSIDS[STUDENTINDEX]}"
 	showconsole "$HOSTLABEL" "$VMDOMID"
 }
 
@@ -433,7 +434,7 @@ getconsole()
                 if [[ $VMNAME = ${STUDENTID} ]] ;then
                 	VMDOMID="${vm_dom_id[$i]}"
                 	HOSTUUID="${vm_resident_on[$i]}"
-			for j in $(seq 0 $(( ${#host_uuid[@]} - 1 )) ) ;do
+					for j in $(seq 0 $(( ${#host_uuid[@]} - 1 )) ) ;do
                         	if [[ ${HOSTUUID} = ${host_uuid[$j]} ]] ;then
                                 	STUFQDN=${host_name_label[$j]}
                                 	HOSTLABEL=${STUFQDN%%.*}
@@ -450,7 +451,7 @@ showconsole()
 
 	echo "Hit enter to see console"
 	echo "Type exit to logout and control ] to exit console"
-        sleep 3
+    sleep 3
 	ssh -t root@${CLOUDHOST} /usr/lib/xen/bin/xenconsole ${CONSOLE}
 }
 
