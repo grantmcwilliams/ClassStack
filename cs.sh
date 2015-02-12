@@ -771,8 +771,8 @@ restartstudent()
 	clear ; echo ""
 	title1 "Restarting VM" ;echo ""
 	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
-	echo xe vm-reboot name-label="${STUSIDS[$STUDENTINDEX]}"
-	echo xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
+	xe vm-reboot name-label="${STUSIDS[$STUDENTINDEX]}"
+	xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
 }
 
 restartclass()
