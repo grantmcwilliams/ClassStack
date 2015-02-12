@@ -240,11 +240,11 @@ choosestudent()
 	local -a INDEX
 	getstudents
 	
-	fsort_arrays STUNAMES
+	fsort_arrays STUNAMES STUSIDS
 	select CHOICE in ${STUNAMES[@]} "Exit" ;do
 		case "$CHOICE" in
 			"Exit")	
-				return 1		
+				return 1
 			;;
 			*) 		
 				for i in $(seq 0 $(( ${#STUNAMES[@]} - 1 )) ) ;do
@@ -771,8 +771,8 @@ restartstudent()
 	clear ; echo ""
 	title1 "Restarting VM" ;echo ""
 	cecho "*" cyan ;echo "     ${STUSIDS[$STUDENTINDEX]}"
-	xe vm-reboot name-label="${STUSIDS[$STUDENTINDEX]}"
-	xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
+	echo xe vm-reboot name-label="${STUSIDS[$STUDENTINDEX]}"
+	echo xe event-wait class=vm power-state=running name-label="${STUSIDS[$STUDENTINDEX]}"
 }
 
 restartclass()
