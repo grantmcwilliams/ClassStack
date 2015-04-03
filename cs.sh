@@ -86,6 +86,7 @@ syntax()
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
         cecho "	 updategrains" cyan; echo "			Append class grain to VMs"
         cecho "	 updatebase" cyan; echo "			Update Base Image"
+        cecho "	 testloginclass" cyan; echo "			Test Login for class"
         cecho "	 deletevm" red; echo "			Delete VM for student"
         cecho "	 deleteclass" red;	echo "			Delete VMs for class"
         cecho "	 recreatevm" red; echo " 			Shutdown, recreate, start a VM"
@@ -576,12 +577,23 @@ createstudent()
 	putethers
 }
 
+getvmclass()
+{
+	local SID="${1}"
+	local HSID=${SID:0:3}-${SID:3:2}-${SID:5:4}
+	local CLASS=$(awk -v var=HSID -F, 'index($0,var){print $1}' ${ROSTER} | sed 's/ //g')
+	echo ${CLASS}
+}
+
 createvm()
 {
 	clear ; echo ""
 	#Pass the INDEX number from the student SID in "${STUNAMES[$INDEX]}" 
 	local INDEX="$1"
 	title1 "Creating VM for ${STUSIDS[$INDEX]}" ; echo ""
+
+	VMCLASS=$(getvmclass "${STUSIDS[$INDEX]}")
+	
 	#Get studentbase UUID, if it's running shut it down
 	if [[ ! -z $(xe vm-list name-label="${STUSIDS[$INDEX]}") ]] ;then
 		cecho "VM exists: " cyan ; echo "${STUSIDS[$INDEX]} - skipping"
@@ -596,6 +608,7 @@ createvm()
 	
 	#Clone base VM
 	STUUUID[$INDEX]=$(xe vm-clone uuid="${BASEUUID}" new-name-label="${STUSIDS[$INDEX]}")
+	xe vm-param-set uuid=${STUUUID[$INDEX]} "other-config:CLASS=${VMCLASS}"
 	
 	#Configure Network for ${STUUUID[$INDEX]}
 	if [[ ! $(xe vm-param-get uuid="${STUUUID[$INDEX]}" param-name=power-state) == 'running' ]]; then
@@ -823,6 +836,9 @@ stopclass()
 	title1 "Shutting down ${CLASSES[$CLASSINDEX]} VMs" ; echo ""
 	for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
 		VMUUID=$(xe vm-list name-label="${STUSIDS[$i]}" params=uuid --minimal)
+		if [[ -z ${VMUUID} ]] ;then
+			continue
+		fi
 		if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
 			if [[ $(xe vm-param-get uuid=$VMUUID param-name=power-state) == 'running' ]]; then
 				cecho "*" cyan ;echo "     ${STUSIDS[$i]}"
@@ -833,6 +849,26 @@ stopclass()
 	done
 }
 
+testloginclass()
+{
+   
+	getethers
+	getstudents
+	if ! chooseclass;then
+		exit
+	fi
+	clear ; echo ""
+	title1 "Testing login for ${CLASSES[$CLASSINDEX]} VMs" ;echo ""
+	for i in $(seq 0 $(( ${#STUCLASSES[@]} - 1 )) ) ;do
+		if [[ "${STUCLASSES[$i]}" == "${CLASSES[$CLASSINDEX]}" ]] ;then
+			if ping -c1 -q "${STUIP[$i]}" &> /dev/null; then
+				echo "Successful login to" $(ssh "root@${STUIP[$i]}"  "hostname") "at ${STUIP[$i]}"
+			else
+				echo "Unable to ping ${STUSIDS[$i]} at ${STUIP[$i]}"
+			fi
+		fi
+	done
+}
 
 updategrains()
 {
@@ -1014,6 +1050,7 @@ case "$1" in
 	    updategrains)   updategrains        ;;
 	    updateconfig)	updateconfig		;;
 	    updatebase)     updatebaseimage    ;;
+	    testloginclass) testloginclass  	;;
 	    *)         		syntax       		;;
 esac
 
