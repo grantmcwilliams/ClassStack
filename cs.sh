@@ -86,6 +86,7 @@ syntax()
         cecho "	 stopclass" cyan; echo " 			Stops VMs for class"
         cecho "	 updategrains" cyan; echo "			Append class grain to VMs"
         cecho "	 updatebase" cyan; echo "			Update Base Image"
+        cecho "	 updateconfig" cyan; echo "			Update System Config"
         cecho "	 testloginclass" cyan; echo "			Test Login for class"
         cecho "	 deletevm" red; echo "			Delete VM for student"
         cecho "	 deleteclass" red;	echo "			Delete VMs for class"
@@ -241,7 +242,7 @@ choosestudent()
 	local -a INDEX
 	getstudents
 	
-	fsort_arrays STUNAMES STUSIDS
+	fsort_arrays STUNAMES STUCLASSES STUSIDS STUDPHONES STUMAC STUIP STUPORT
 	select CHOICE in ${STUNAMES[@]} "Exit" ;do
 		case "$CHOICE" in
 			"Exit")	
@@ -269,17 +270,24 @@ getstudents()
 		STUNAMES[$i]=$(echo ${LINE%%,*} | awk '{print $2,$1,$3}')	;LINE="${LINE#*,}"
 		STUDPHONES[$i]=$(echo ${LINE%%,*} | sed 's/ /-/g')  		;LINE="${LINE#*,}"
 		STUEPHONES[$i]=$(echo ${LINE%%,*} | sed 's/ /-/g') 			;LINE="${LINE#*,}"
-		STUMAC[$i]=$(echo "001${STUSIDS[$i]}" | sed ':a;s/\B[u0-9]\{2\}\>/:&/;ta')
-		STUIP[$i]=$(grep ${STUMAC[$i]} $TMPDIR/ethers.tmp | awk '{print $2}')
-		if [[ -z ${STUIP[$i]} ]]  ;then
+		STUMAC[$i]="$(echo "001${STUSIDS[$i]}" | sed ':a;s/\B[u0-9]\{2\}\>/:&/;ta')"
+		STUIP[$i]="$(grep ${STUMAC[$i]} $TMPDIR/ethers.tmp | awk '{print $2}')"
+		if [[ -z "${STUIP[$i]}" ]]  ;then
 			STUIP[$i]="-"
 		fi
-		STUPORT[$i]=$(grep ${STUMAC[$i]} $TMPDIR/ethers.tmp | awk '{print $2}' | sed 's/192.168.0./10/g')
-		if [[ -z ${STUPORT[$i]} ]]  ;then
+		STUPORT[$i]="$(grep ${STUMAC[$i]} $TMPDIR/ethers.tmp | awk '{print $2}' | sed 's/192.168.0./10/g')"
+		if [[ -z "${STUPORT[$i]}" ]]  ;then
 			STUPORT[$i]="-"
 		fi
-		((i++))
+		((i++))	
 	done
+	#for i in $(seq 0 35) ;do 
+	#	echo $i - ${STUNAMES[$i]} ${STUSIDS[$i]} ${STUMAC[$i]}
+	#done
+	
+	
+	
+	#exit
 }
 
 showconsoles()
@@ -573,7 +581,7 @@ createstudent()
 	if ! choosestudent ;then
 		exit
 	fi
-	createvm "$STUDENTINDEX"
+	createvm "${STUDENTINDEX}"
 	putethers
 }
 
@@ -581,8 +589,8 @@ getvmclass()
 {
 	local SID="${1}"
 	local HSID=${SID:0:3}-${SID:3:2}-${SID:5:4}
-	local CLASS=$(awk -v var=HSID -F, 'index($0,var){print $1}' ${ROSTER} | sed 's/ //g')
-	echo ${CLASS}
+	local CLASS=$(awk -v var="${HSID}" -F, 'index($0,var){print $1}' ${ROSTER} | sed 's/ //g')
+	echo "${CLASS}"
 }
 
 createvm()
@@ -591,7 +599,7 @@ createvm()
 	#Pass the INDEX number from the student SID in "${STUNAMES[$INDEX]}" 
 	local INDEX="$1"
 	title1 "Creating VM for ${STUSIDS[$INDEX]}" ; echo ""
-
+ 
 	VMCLASS=$(getvmclass "${STUSIDS[$INDEX]}")
 	
 	#Get studentbase UUID, if it's running shut it down
@@ -607,6 +615,7 @@ createvm()
 	fi
 	
 	#Clone base VM
+
 	STUUUID[$INDEX]=$(xe vm-clone uuid="${BASEUUID}" new-name-label="${STUSIDS[$INDEX]}")
 	xe vm-param-set uuid=${STUUUID[$INDEX]} "other-config:CLASS=${VMCLASS}"
 	
@@ -626,7 +635,7 @@ createvm()
 			VIFUUID[$i]=$(xe vif-create vm-uuid="${STUUUID[$INDEX]}" network-uuid="${NETUUID[$i]}" device="${i}" mac="${MAC}")
 		done
 	fi ; echo
-	
+
 	#Change the name of xvda to ${STUNAMES[$INDEX]}_0 e.g. 987654321_0
 	echo "Configuring Hard drives"
 	VDINUM=$(xe vbd-list vm-uuid="${STUUUID[$INDEX]}" params=vdi-uuid --minimal | wc -l)
@@ -676,7 +685,7 @@ createvm()
 		fi
 		(( j++ ))
 	done	
-	
+
 	#Set memory limits
 	if [[ ! $(xe vm-param-get uuid="${STUUUID[$INDEX]}" param-name=power-state) == 'running' ]]; then
 		echo ""
@@ -698,6 +707,7 @@ createvm()
 			fi
 		fi
 	done
+        
 	
 	if ! grep -q "${STUMAC[$INDEX]}" "$TMPDIR/ethers" ;then
 		VMENDIP=$(( VMSTARTIP + VMTOTAL ))
@@ -716,6 +726,8 @@ createvm()
   		echo "${STUIP[$INDEX]} ${STUSIDS[$INDEX]}.${DOMAIN} ${STUSIDS[$INDEX]}" >> "$TMPDIR/hosts"	
 	fi
 	
+	
+
 	#Add entry to salt-ssh roster
 	grep -v "${STUSIDS[$INDEX]}" "${SALTDIR}/roster" > "${TMPDIR}/roster"
 	echo "${STUSIDS[$INDEX]}: ${STUIP[$INDEX]}" >> "${TMPDIR}/roster"
@@ -895,6 +907,7 @@ updateconfig()
 
 updatebaseimage()
 {
+	#Doesn't really do anything yet - in time I'd like to use this to do a yum update etc...
 	BASEUUID=$(xe vm-list name-label="${BASEIMAGE}" --minimal)
 	if [ $(xe vm-param-get uuid="${BASEUUID}" param-name=power-state) == 'halted' ]; then
 	    xe vm-start uuid="${BASEUUID}"
