@@ -1053,10 +1053,11 @@ case "$1" in
 	    startvm)  	 	startstudent		;;
 	    startclass)		startclass			;;
 	    restartvm)  	restartstudent		;;
-		restartclass)  	restartclass		;;
+	    rebootvm)  		restartstudent		;;
+	    restartclass)  	restartclass		;;
 	    stopvm)			stopstudent			;;
 	    stopclass)		stopclass			;;
-        showconsole)    consolestudent	    ;;
+            showconsole)    consolestudent	    ;;
 	    runvm)			runstudent "$@"		;;
 	    runclass)		runclass "$@"		;;
 	    acceptkeys)     acceptkeys			;;
