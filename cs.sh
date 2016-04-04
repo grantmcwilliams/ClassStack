@@ -14,6 +14,8 @@ setup()
 	TMPDIR=$(mktemp -d)
 	SALTDIR="/etc/salt"
 	ROSTER="${SCRIPTDIR}/Rosters/ROSTDOWN.csv"
+    ADMINROSTER="${SCRIPTDIR}/Rosters/ADMINS.csv"
+    STUDENTROSTER="${SCRIPTDIR}/Rosters/STUDENTS.csv"
 	BASEIMAGE="studentbase"
 	setcolors	
 	DEFSPACE="5"
@@ -554,25 +556,37 @@ createroster()
 		ROSTDIR="$SCRIPTDIR/Rosters"
 	fi
 
-	NEWROSTER="$ROSTDIR/ROSTDOWN.csv"
-	if [ -e "$NEWROSTER" ];then
-		if ! yesno "Roster already exits - append? y|n" ;then
-			rm -f "$NEWROSTER"
-		fi 
-	fi
-
+    echo "" > "$STUDENTROSTER"
 	COURSE=$(grep -A1 QUARTER ${IBCFILE} | tail -n1 | awk -F'\t' '{print $3}' | sed 's/^[ \t]*//;s/[ \t]*$//')
 	for LINE in $(cat "$IBCFILE") ;do
 		if echo "$LINE" | grep -q '^[0-9]' ;then
 			NEWLINE=$(echo "$LINE" | sed 's/\t/,/g' | awk -F, '{print $2","$3","$5","$6","$7}')
-			echo "${COURSE},${NEWLINE}" >> "$NEWROSTER"
+			echo "${COURSE},${NEWLINE}" >> "$STUDENTROSTER"
 		fi
 	done
 
-	if [[ -e "$NEWROSTER" ]] ;then	
-		dos2unix "$NEWROSTER" &> /dev/null
+	if [[ -e "$STUDENTROSTER" ]] ;then
+		dos2unix "$STUDENTROSTER" &> /dev/null
 	fi
 
+    if [[ -e "$ADMINROSTER" ]] ;then
+		dos2unix "$ADMINROSTER" &> /dev/null
+	fi
+    
+    if [[ -e "$ROSTER" ]] ;then
+		if ! yesno "Roster already exits - append? y|n" ;then
+			rm -f "$ROSTER"
+		fi 
+	fi
+    cat "$STUDENTROSTER" >> "$ROSTER"
+    #rm -f "$STUDENTROSTER"
+    
+    for LINE in $(cat $ADMINROSTER);do
+        if ! grep "$LINE" "$ROSTER" ;then
+            echo "$LINE" >> "$ROSTER"
+        fi
+    done
+    sed -i '/^$/d' "$ROSTER"
 }
 
 createstudent()
